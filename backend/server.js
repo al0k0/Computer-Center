@@ -97,6 +97,14 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'computer-center-backend',
+    routes: ['/api/health', '/api/contact'],
+  });
+});
+
 app.get('/api/health', async (req, res) => {
   try {
     await getMessagesCollection();
