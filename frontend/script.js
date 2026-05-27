@@ -73,7 +73,9 @@ contactForm?.addEventListener('submit', async (event) => {
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(result.error || 'Unable to submit form.');
+      const errorCode = result.databaseError?.code || result.code;
+      const errorMessage = errorCode ? `${result.error || 'Unable to submit form.'} (${errorCode})` : result.error;
+      throw new Error(errorMessage || 'Unable to submit form.');
     }
 
     setFormStatus('Thank you! Your message was sent successfully.', 'success');

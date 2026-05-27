@@ -65,20 +65,29 @@ function sanitizeText(value) {
 
 function getDatabaseErrorCode(error) {
   const message = error?.message || '';
+  const name = error?.name || '';
 
   if (message === 'MONGODB_URI is not configured.') {
     return 'missing_mongodb_uri';
   }
 
-  if (/bad auth|authentication failed/i.test(message)) {
+  if (/bad auth|authentication failed|MongoServerError/i.test(`${name} ${message}`)) {
     return 'bad_auth';
   }
 
-  if (/querySrv|ENOTFOUND|ECONNREFUSED|ETIMEOUT|server selection/i.test(message)) {
+  if (/querySrv|ENOTFOUND|ECONNREFUSED|ETIMEOUT|server selection|IP.*whitelist|not authorized/i.test(message)) {
     return 'network_or_dns';
   }
 
   return 'database_error';
+}
+
+function getSafeDatabaseError(error) {
+  return {
+    code: getDatabaseErrorCode(error),
+    name: error?.name || 'Error',
+    message: error?.message || 'Unknown database error',
+  };
 }
 
 app.post('/api/contact', async (req, res) => {
@@ -107,12 +116,12 @@ app.post('/api/contact', async (req, res) => {
   } catch (error) {
     console.error('Contact submission failed:', error);
 
-    const code = getDatabaseErrorCode(error);
-    if (code === 'missing_mongodb_uri') {
-      return res.status(500).json({ error: 'Contact service is not configured yet.', code });
+    const databaseError = getSafeDatabaseError(error);
+    if (databaseError.code === 'missing_mongodb_uri') {
+      return res.status(500).json({ error: 'Contact service is not configured yet.', databaseError });
     }
 
-    return res.status(500).json({ error: 'Failed to save your message. Please try again later.', code });
+    return res.status(500).json({ error: 'Failed to save your message. Please try again later.', databaseError });
   }
 });
 
@@ -133,7 +142,7 @@ app.get('/api/health', async (req, res) => {
     return res.status(500).json({
       status: 'error',
       database: 'unavailable',
-      code: getDatabaseErrorCode(error),
+      databaseError: getSafeDatabaseError(error),
     });
   }
 });
